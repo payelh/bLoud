@@ -1,5 +1,10 @@
 <resources>
     <string name="app_name">bLoud</string>
+    <string name="save_settings">Save Settings</string>
+    <string name="secret_hint">Secret Passphrase (e.g., \'changemode\')</string>
+    <string name="phone_number_hint">Incoming Phone Number (e.g., +1234567890)</string>
+    <string name="sms_bLoud">SMS Ringer Control</string>
+    <string name="change_to">ChangeTo</string>
     <string-array name="ringer_actions">
         <item>Loud</item>
         <item>Silent</item>
