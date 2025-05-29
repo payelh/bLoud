@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">bLoud</string>
+    <string-array name="ringer_actions">
+        <item>Loud</item>
+        <item>Silent</item>
+    </string-array>
+</resources>
