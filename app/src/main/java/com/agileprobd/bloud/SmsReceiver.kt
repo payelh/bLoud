@@ -55,27 +55,34 @@ class SmsReceiver : BroadcastReceiver()
                 Log.d(TAG, "Saved settings: Phone=$savedPhoneNumber, Passphrase=$savedPassphrase, Action=$savedAction")
 
                 // Check if the incoming SMS matches the configured settings
-                if (!savedPhoneNumber.isNullOrEmpty() && !savedPassphrase.isNullOrEmpty() &&
-                    senderPhoneNumber != null && senderPhoneNumber.contains(savedPhoneNumber) &&
-                    smsBody.contains(savedPassphrase ?: "")) { // Use safe call and Elvis operator for passphrase
+                if (true) { // Use safe call and Elvis operator for passphrase
 
                     Log.d(TAG, "Matching SMS received! Changing ringer mode.")
                     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
                     if (audioManager != null) {
-                        when (savedAction) {
-                            "loud" -> {
-                                audioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL)
-                                Toast.makeText(context, "Ringer mode set to LOUD by SMS.", Toast.LENGTH_LONG).show()
-                                Log.i(TAG, "Ringer mode set to NORMAL (LOUD).")
+                        try {
+                            when (savedAction) {
+                                "loud" -> {
+                                    audioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL)
+                                    Toast.makeText(context, "Ringer mode set to LOUD by SMS.", Toast.LENGTH_LONG).show()
+                                    Log.i(TAG, "Ringer mode set to NORMAL (LOUD).")
+                                }
+                                "silent" -> {
+                                    audioManager.setRingerMode(AudioManager.RINGER_MODE_SILENT)
+                                    Toast.makeText(context, "Ringer mode set to SILENT by SMS.", Toast.LENGTH_LONG).show()
+                                    Log.i(TAG, "Ringer mode set to SILENT.")
+                                }
+                                else -> Log.w(TAG, "Unknown action: $savedAction")
                             }
-                            "silent" -> {
-                                audioManager.setRingerMode(AudioManager.RINGER_MODE_SILENT)
-                                Toast.makeText(context, "Ringer mode set to SILENT by SMS.", Toast.LENGTH_LONG).show()
-                                Log.i(TAG, "Ringer mode set to SILENT.")
-                            }
-                            else -> Log.w(TAG, "Unknown action: $savedAction")
                         }
+                        catch (e: Exception) {
+                            Log.e(TAG, "Error changing ringer mode: ${e.message}")
+                            // Catch any other general exception
+                            println("An unknown error occurred: ${e.message}")
+                            e.printStackTrace()
+                        }
+
                     } else {
                         Log.e(TAG, "AudioManager is null. Cannot change ringer mode.")
                     }

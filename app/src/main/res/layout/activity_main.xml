@@ -51,7 +51,7 @@
             />
         <Spinner
             android:paddingLeft="10dp"
-            android:id="@+id/actionSpinner"
+            android:id="@+id/ringerModeSpinner"
             android:layout_width="wrap_content"
             android:layout_height="48dp"
             android:padding="12dp"
