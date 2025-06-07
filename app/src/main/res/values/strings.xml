@@ -7,6 +7,6 @@
     <string name="change_to">ChangeTo</string>
     <string-array name="ringer_actions">
         <item>Loud</item>
-        <item>Silent</item>
+        <item>Play Sound</item>
     </string-array>
 </resources>

@@ -3,12 +3,13 @@ package com.agileprobd.bloud
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.SharedPreferences
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.app.NotificationManager
+import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsMessage
 import android.util.Log
-import android.widget.Toast
 
 class SmsReceiver : BroadcastReceiver()
 {
@@ -16,7 +17,7 @@ class SmsReceiver : BroadcastReceiver()
     private val PREFS_NAME = "SmsRingerPrefs"
     private val KEY_PHONE_NUMBER = "phoneNumber"
     private val KEY_PASSPHRASE = "passphrase"
-    private val KEY_ACTION = "action" // "loud" or "silent"
+    private val KEY_ACTION = "actionToDo" // "Loud" or "Play Sound"
 
     override fun onReceive(context: Context, intent: Intent) {
         // Check if the intent action is for SMS received
@@ -63,19 +64,29 @@ class SmsReceiver : BroadcastReceiver()
                     if (audioManager != null) {
                         try {
                             when (savedAction) {
-                                "loud" -> {
-                                    audioManager.setRingerMode(AudioManager.RINGER_MODE_NORMAL)
-                                    Toast.makeText(context, "Ringer mode set to LOUD by SMS.", Toast.LENGTH_LONG).show()
-                                    Log.i(TAG, "Ringer mode set to NORMAL (LOUD).")
+
+                                "Loud" -> {
+
+                                    setLoudModeAndDisableDnd(context)
+
                                 }
-                                "silent" -> {
-                                    audioManager.setRingerMode(AudioManager.RINGER_MODE_SILENT)
-                                    Toast.makeText(context, "Ringer mode set to SILENT by SMS.", Toast.LENGTH_LONG).show()
-                                    Log.i(TAG, "Ringer mode set to SILENT.")
+                                "Play Sound" -> {
+                                    // Ensure the volume is at maximum
+                                    audioManager.setStreamVolume(
+                                        AudioManager.STREAM_MUSIC,
+                                        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
+                                        0
+                                    )
+                                    val mediaPlayer = MediaPlayer.create(context, R.raw.music   ) // Assuming you have a sound file in res/raw
+                                    mediaPlayer?.start() // Play the sound
+                                    mediaPlayer?.setOnCompletionListener {
+                                        it.release()
+                                    }
                                 }
                                 else -> Log.w(TAG, "Unknown action: $savedAction")
                             }
                         }
+
                         catch (e: Exception) {
                             Log.e(TAG, "Error changing ringer mode: ${e.message}")
                             // Catch any other general exception
@@ -90,6 +101,52 @@ class SmsReceiver : BroadcastReceiver()
                     Log.d(TAG, "Incoming SMS did not match criteria.")
                 }
             }
+        }
+    }
+
+    private fun setLoudModeAndDisableDnd(context: Context) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+        // 1. Set Ringer Mode to Normal (Loud)
+        try {
+            if (audioManager.ringerMode != AudioManager.RINGER_MODE_NORMAL) {
+                audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
+                Log.d(TAG, "Ringer mode set to NORMAL.")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException changing ringer mode: ${e.message}")
+            // Handle cases where you might not have permission (though less common for ringer mode)
+        }
+
+
+        // 2. Check for Notification Policy Access Permission
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!notificationManager.isNotificationPolicyAccessGranted) {
+                Log.w(TAG, "Notification Policy Access not granted. Cannot disable DND.")
+                return
+            }
+        }
+
+        // 3. Disable DND if it's active
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val currentFilter = notificationManager.currentInterruptionFilter
+                if (currentFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
+                    notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
+                    Log.d(TAG, "DND disabled (interruption filter set to ALL).")
+                } else {
+                    Log.d(TAG, "DND is already disabled or not active.")
+                }
+            } else {
+                // For versions older than M, DND management was different and less standardized.
+                // RINGER_MODE_NORMAL usually implies DND is off.
+                Log.d(TAG, "Pre-M: Ringer mode normal should disable DND equivalent.")
+            }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException disabling DND: ${e.message}")
+            // This might happen if the permission was revoked after the check.
         }
     }
 }
