@@ -1,16 +1,15 @@
 package com.agileprobd.bloud
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioManager
-import android.media.MediaPlayer
-import android.app.NotificationManager
 import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsMessage
 import android.util.Log
-import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 
 class SmsReceiver : BroadcastReceiver()
 {
@@ -73,16 +72,15 @@ class SmsReceiver : BroadcastReceiver()
 
                                 }
                                 "Play Sound" -> {
-                                    // Ensure the volume is at maximum
-                                    audioManager.setStreamVolume(
-                                        AudioManager.STREAM_MUSIC,
-                                        audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC),
-                                        0
-                                    )
-                                    val mediaPlayer = MediaPlayer.create(context, R.raw.music   ) // Assuming you have a sound file in res/raw
-                                    mediaPlayer?.start() // Play the sound
-                                    mediaPlayer?.setOnCompletionListener {
-                                        it.release()
+
+                                    // --- NEW: Start music playback service here ---
+                                    context.let {
+                                        val serviceIntent = Intent(it, MusicPlaybackService::class.java).apply {
+                                            action = MusicPlaybackService.ACTION_PLAY_MUSIC
+                                        }
+                                        // For Android 8.0 (API 26) and higher, use startForegroundService
+                                        // The service then must call startForeground() within 5 seconds.
+                                        ContextCompat.startForegroundService(it, serviceIntent)
                                     }
                                 }
                                 else -> Log.w(TAG, "Unknown action: $savedAction")
