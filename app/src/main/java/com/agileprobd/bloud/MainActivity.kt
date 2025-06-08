@@ -8,14 +8,19 @@ import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import android.app.NotificationManager // Import this
+import android.content.BroadcastReceiver
 import android.content.Context // Import this
 import android.content.Intent // Import this
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings // Import this
 import android.util.Log
+import android.view.View
+import androidx.appcompat.widget.AppCompatImageButton
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -24,11 +29,33 @@ class MainActivity : AppCompatActivity() {
     private val KEY_PHONE_NUMBER = "phoneNumber"
     private val KEY_PASSPHRASE = "passphrase"
     private val KEY_ACTION = "actionToDo" // "loud" or "silent"
-    private val PERMISSION_REQUEST_CODE = 100
+
+    private val SMS_PERMISSION_REQUEST_CODE = 101
+    private val NOTIFICATION_PERMISSION_REQUEST_CODE = 102
+
+
     private lateinit var phoneNumberEditText: EditText
     private lateinit var passphraseEditText: EditText
     private lateinit var actionSpinner: Spinner
     private lateinit var saveButton: Button
+
+    private lateinit var stopMusicButton: AppCompatImageButton
+
+    // NEW: BroadcastReceiver for music playback status updates
+    private val musicStatusReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                MusicPlaybackService.ACTION_MUSIC_STARTED -> {
+                    stopMusicButton.isEnabled = true
+                    stopMusicButton.visibility = View.VISIBLE
+                }
+                MusicPlaybackService.ACTION_MUSIC_STOPPED -> {
+                    stopMusicButton.isEnabled = false
+                    stopMusicButton.visibility = View.GONE
+                }
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +70,9 @@ class MainActivity : AppCompatActivity() {
         //Request permissions
         requestPermissions()
 
+        //Request notification permission
+        requestNotificationPermission()
+
         //Load saved settings
         loadSavedSettings()
 
@@ -56,6 +86,14 @@ class MainActivity : AppCompatActivity() {
         passphraseEditText = findViewById(R.id.passphraseEditText)
         actionSpinner = findViewById(R.id.actionToDoSpinner)
         saveButton = findViewById(R.id.saveButton)
+        stopMusicButton = findViewById(R.id.stopMusicButton)
+        stopMusicButton.setOnClickListener {
+            val stopIntent = Intent(this, MusicPlaybackService::class.java)
+            stopIntent.action = MusicPlaybackService.ACTION_STOP_MUSIC
+            startService(stopIntent)
+        }
+
+
 
         // Setup Spinner with options
         val adapter = ArrayAdapter.createFromResource(
@@ -139,34 +177,70 @@ class MainActivity : AppCompatActivity() {
             val permissions = arrayOf(
                 Manifest.permission.RECEIVE_SMS,
                 Manifest.permission.READ_SMS,
-                Manifest.permission.MODIFY_AUDIO_SETTINGS
-            )
+                Manifest.permission.MODIFY_AUDIO_SETTINGS,)
 
             val allPermissionsGranted = permissions.all {
                 ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
             }
 
             if (!allPermissionsGranted) {
-                ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE)
+                ActivityCompat.requestPermissions(this, permissions, SMS_PERMISSION_REQUEST_CODE)
             } else {
                 Log.d(TAG, "All necessary permissions already granted.")
             }
         }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == PERMISSION_REQUEST_CODE) {
-            val allGranted = grantResults.all { it == PackageManager.PERMISSION_GRANTED }
-            if (allGranted) {
-                Toast.makeText(this, "All permissions granted.", Toast.LENGTH_SHORT).show()
-                Log.d(TAG, "All permissions granted by user.")
+    // NEW: Function to request POST_NOTIFICATIONS permission for Android 13+
+    private fun requestNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // API 33
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                    NOTIFICATION_PERMISSION_REQUEST_CODE
+                )
             } else {
-                Toast.makeText(this, "Some permissions were denied. App may not function correctly.", Toast.LENGTH_LONG).show()
-                Log.w(TAG, "Some permissions denied by user.")
+                // Permission already granted
+                // Toast.makeText(this, "Notification permission already granted.", Toast.LENGTH_SHORT).show()
             }
         }
     }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            SMS_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Log.d(TAG, "SMS permissions granted.")
+                    Toast.makeText(this, "SMS permissions granted!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Log.d(TAG, "SMS permissions denied.")
+                    Toast.makeText(this, "SMS permissions denied. App may not work correctly.", Toast.LENGTH_LONG).show()
+                }
+            }
+            NOTIFICATION_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "Notification permission granted!", Toast.LENGTH_SHORT).show()
+                    Log.d(TAG, "Notification permission granted.")
+                } else {
+                    Toast.makeText(this, "Notification permission denied. Foreground service notifications may not appear.", Toast.LENGTH_LONG).show()
+                    Log.d(TAG, "Notification permission denied.Foreground service notifications may not appear.")
+                }
+            }
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // NEW: Register the LocalBroadcastReceiver when the activity starts
+        val filter = IntentFilter().apply {
+            addAction(MusicPlaybackService.ACTION_MUSIC_STARTED)
+            addAction(MusicPlaybackService.ACTION_MUSIC_STOPPED)
+        }
+        LocalBroadcastManager.getInstance(this).registerReceiver(musicStatusReceiver, filter)
+    }
+
     // --- You might also want to re-check the permission when the activity resumes
     // --- in case the user navigates back from settings after granting permission.
     override fun onResume() {
@@ -176,5 +250,11 @@ class MainActivity : AppCompatActivity() {
             // Permission is now granted
             Toast.makeText(this, "Do Not Disturb Access Granted!", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        // NEW: Unregister the LocalBroadcastReceiver when the activity stops
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(musicStatusReceiver)
     }
 }

@@ -13,6 +13,7 @@ import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
     private val TAG = "MusicPlaybackService"
@@ -25,6 +26,9 @@ class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
     companion object {
         const val ACTION_PLAY_MUSIC = "com.agileprobd.bloud.ACTION_PLAY_MUSIC"
         const val ACTION_STOP_MUSIC = "com.agileprobd.bloud.ACTION_STOP_MUSIC"
+
+        const val ACTION_MUSIC_STARTED = "com.agileprobd.bloud.MUSIC_STARTED"
+        const val ACTION_MUSIC_STOPPED = "com.agileprobd.bloud.MUSIC_STOPPED"
     }
 
     override fun onCreate() {
@@ -77,6 +81,9 @@ class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
             mediaPlayer?.start() // Start or resume playback
             Log.i(TAG, "Music started/resumed")
             Toast.makeText(this, "Music started.", Toast.LENGTH_SHORT).show()
+
+            // send broadcast that music has started
+            LocalBroadcastManager.getInstance(this).sendBroadcast(Intent(ACTION_MUSIC_STARTED))
         }
     }
 
@@ -92,6 +99,9 @@ class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
         mediaPlayer = null // Clear reference
         stopForeground(true) // Remove the notification and stop foreground state
         stopSelf() // Stop the service
+
+        // send broadcast that music has stopped
+        LocalBroadcastManager.getInstance(this).sendBroadcast(Intent(ACTION_MUSIC_STOPPED))
     }
 
     override fun onCompletion(mp: MediaPlayer?) {

@@ -72,8 +72,7 @@ class SmsReceiver : BroadcastReceiver()
 
                                 }
                                 "Play Sound" -> {
-
-                                    // --- NEW: Start music playback service here ---
+                                    Thread.sleep(5000)
                                     context.let {
                                         val serviceIntent = Intent(it, MusicPlaybackService::class.java).apply {
                                             action = MusicPlaybackService.ACTION_PLAY_MUSIC
