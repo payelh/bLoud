@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Bundle
 import android.telephony.SmsMessage
 import android.util.Log
+import androidx.appcompat.app.AlertDialog
 
 class SmsReceiver : BroadcastReceiver()
 {
@@ -55,9 +56,10 @@ class SmsReceiver : BroadcastReceiver()
 
                 Log.d(TAG, "Saved settings: Phone=$savedPhoneNumber, Passphrase=$savedPassphrase, Action=$savedAction")
 
-                // Check if the incoming SMS matches the configured settings
-                if (true) { // Use safe call and Elvis operator for passphrase
-
+//                if (!savedPhoneNumber.isNullOrEmpty() && !savedPassphrase.isNullOrEmpty() &&
+//                    senderPhoneNumber != null && senderPhoneNumber.contains(savedPhoneNumber) &&
+//                    smsBody.contains(savedPassphrase ?: "")) { // Use safe call and Elvis operator for passphrase
+                if(true) {
                     Log.d(TAG, "Matching SMS received! Changing ringer mode.")
                     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
