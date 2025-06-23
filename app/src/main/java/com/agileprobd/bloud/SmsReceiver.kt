@@ -13,11 +13,10 @@ import androidx.core.content.ContextCompat
 
 class SmsReceiver : BroadcastReceiver()
 {
-    private val TAG = "SmsReceiver"
+    private val TAG = javaClass.simpleName //use class name as tag
     private val PREFS_NAME = "SmsRingerPrefs"
     private val KEY_PHONE_NUMBER = "phoneNumber"
     private val KEY_PASSPHRASE = "passphrase"
-    private val KEY_ACTION = "actionToDo" // "Loud" or "Play Sound"
 
     override fun onReceive(context: Context, intent: Intent) {
         // Check if the intent action is for SMS received
@@ -51,46 +50,23 @@ class SmsReceiver : BroadcastReceiver()
                 val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 val savedPhoneNumber = prefs.getString(KEY_PHONE_NUMBER, "")
                 val savedPassphrase = prefs.getString(KEY_PASSPHRASE, "")
-                val savedAction = prefs.getString(KEY_ACTION, "loud")
 
-                Log.d(TAG, "Saved settings: Phone=$savedPhoneNumber, Passphrase=$savedPassphrase, Action=$savedAction")
+                Log.d(TAG, "Saved settings: Phone=$savedPhoneNumber, Passphrase=$savedPassphrase")
 
-//                if (!savedPhoneNumber.isNullOrEmpty() && !savedPassphrase.isNullOrEmpty() &&
-//                    senderPhoneNumber != null && senderPhoneNumber.contains(savedPhoneNumber) &&
-//                    smsBody.contains(savedPassphrase ?: "")) { // Use safe call and Elvis operator for passphrase
-                if(true) {
+                if (!savedPhoneNumber.isNullOrEmpty() && !savedPassphrase.isNullOrEmpty() &&
+                    senderPhoneNumber != null && senderPhoneNumber.contains(savedPhoneNumber) &&
+                   smsBody.contains(savedPassphrase ?: "")) { // Use safe call and Elvis operator for passphrase
+
                     Log.d(TAG, "Matching SMS received! Changing ringer mode.")
                     val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
 
                     if (audioManager != null) {
                         try {
-                            when (savedAction) {
-
-                                "Loud" -> {
-
-                                    setLoudModeAndDisableDnd(context)
-
-                                }
-                                "Play Sound" -> {
-                                    Thread.sleep(5000)
-                                    context.let {
-                                        val serviceIntent = Intent(it, MusicPlaybackService::class.java).apply {
-                                            action = MusicPlaybackService.ACTION_PLAY_MUSIC
-                                        }
-                                        // For Android 8.0 (API 26) and higher, use startForegroundService
-                                        // The service then must call startForeground() within 5 seconds.
-                                        ContextCompat.startForegroundService(it, serviceIntent)
-                                    }
-                                }
-                                else -> Log.w(TAG, "Unknown action: $savedAction")
-                            }
+                            setLoudAndDiableDND(context)
                         }
 
                         catch (e: Exception) {
                             Log.e(TAG, "Error changing ringer mode: ${e.message}")
-                            // Catch any other general exception
-                            println("An unknown error occurred: ${e.message}")
-                            e.printStackTrace()
                         }
 
                     } else {
@@ -103,12 +79,32 @@ class SmsReceiver : BroadcastReceiver()
         }
     }
 
-    private fun setLoudModeAndDisableDnd(context: Context) {
+    private fun playAudio(context: Context) {
+        // Wait some and request playback service
+        Thread.sleep(5000)
+        context.let {
+            val serviceIntent = Intent(it, MusicPlaybackService::class.java).apply {
+                action = MusicPlaybackService.ACTION_PLAY_MUSIC
+            }
+            // For Android 8.0 (API 26) and higher, use startForegroundService
+            // The service then must call startForeground() within 5 seconds.
+            ContextCompat.startForegroundService(it, serviceIntent)
+        }
+    }
+
+    private fun setLoudAndDiableDND(context: Context) {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        val notificationManager =
-            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // 1. Set Ringer Mode to Normal (Loud)
+        setRingerToLoud(audioManager)
+
+        //2. If failed to disable DND, then play music
+        if(!tryDisableDnd(context)) {
+            playAudio(context)
+        }
+    }
+
+    private fun setRingerToLoud(audioManager: AudioManager) {
         try {
             if (audioManager.ringerMode != AudioManager.RINGER_MODE_NORMAL) {
                 audioManager.ringerMode = AudioManager.RINGER_MODE_NORMAL
@@ -118,34 +114,51 @@ class SmsReceiver : BroadcastReceiver()
             Log.e(TAG, "SecurityException changing ringer mode: ${e.message}")
             // Handle cases where you might not have permission (though less common for ringer mode)
         }
+    }
 
-
-        // 2. Check for Notification Policy Access Permission
+    private fun tryDisableDnd(context: Context): Boolean {
+        val notificationManager =
+            context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        // Check for Notification Policy Access Permission
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!notificationManager.isNotificationPolicyAccessGranted) {
                 Log.w(TAG, "Notification Policy Access not granted. Cannot disable DND.")
-                return
+                return false
             }
         }
 
-        // 3. Disable DND if it's active
+        // Disable DND if it's active
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 val currentFilter = notificationManager.currentInterruptionFilter
                 if (currentFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
+                    //Disable DND
                     notificationManager.setInterruptionFilter(NotificationManager.INTERRUPTION_FILTER_ALL)
-                    Log.d(TAG, "DND disabled (interruption filter set to ALL).")
+
+                    //check if still DND is disabled
+                    if (currentFilter != NotificationManager.INTERRUPTION_FILTER_ALL) {
+                        Log.d(TAG, "DND is still disabled.")
+                        return false
+                    }
+                    else {
+                        Log.d(TAG, "DND is successfully enabled.")
+                        return true
+                    }
+
                 } else {
                     Log.d(TAG, "DND is already disabled or not active.")
+                    return true
                 }
             } else {
                 // For versions older than M, DND management was different and less standardized.
                 // RINGER_MODE_NORMAL usually implies DND is off.
                 Log.d(TAG, "Pre-M: Ringer mode normal should disable DND equivalent.")
+                return true
             }
         } catch (e: SecurityException) {
-            Log.e(TAG, "SecurityException disabling DND: ${e.message}")
             // This might happen if the permission was revoked after the check.
+            Log.e(TAG, "SecurityException disabling DND: ${e.message}")
+            return false
         }
     }
 }

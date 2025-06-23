@@ -1,10 +1,8 @@
 package com.agileprobd.bloud
 import android.Manifest
 import android.os.Bundle
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
-import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import android.app.NotificationManager // Import this
@@ -24,11 +22,10 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class MainActivity : AppCompatActivity() {
 
-    private val TAG = "MainActivity"
+    private val TAG = javaClass.simpleName //use class name as tag
     private val PREFS_NAME = "SmsRingerPrefs"
     private val KEY_PHONE_NUMBER = "phoneNumber"
     private val KEY_PASSPHRASE = "passphrase"
-    private val KEY_ACTION = "actionToDo" // "loud" or "silent"
 
     private val SMS_PERMISSION_REQUEST_CODE = 101
     private val NOTIFICATION_PERMISSION_REQUEST_CODE = 102
@@ -36,7 +33,6 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var phoneNumberEditText: EditText
     private lateinit var passphraseEditText: EditText
-    private lateinit var actionSpinner: Spinner
     private lateinit var saveButton: Button
 
     private lateinit var stopMusicButton: AppCompatImageButton
@@ -84,7 +80,6 @@ class MainActivity : AppCompatActivity() {
     private fun initializeUiComponent() {
         phoneNumberEditText = findViewById(R.id.phoneNumberEditText)
         passphraseEditText = findViewById(R.id.passphraseEditText)
-        actionSpinner = findViewById(R.id.actionToDoSpinner)
         saveButton = findViewById(R.id.saveButton)
         stopMusicButton = findViewById(R.id.stopMusicButton)
         stopMusicButton.setOnClickListener {
@@ -93,15 +88,8 @@ class MainActivity : AppCompatActivity() {
             startService(stopIntent)
         }
 
-
-
-        // Setup Spinner with options
-        val adapter = ArrayAdapter.createFromResource(
-            this,
-            R.array.ringer_actions, android.R.layout.simple_spinner_item
-        )
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        actionSpinner.adapter = adapter
+        stopMusicButton.isEnabled = false
+        stopMusicButton.visibility = View.GONE
 
         saveButton.setOnClickListener {
             saveSettings()
@@ -114,14 +102,13 @@ class MainActivity : AppCompatActivity() {
     private fun saveSettings() {
         val phoneNumber = phoneNumberEditText.text.toString()
         val passPhrase = passphraseEditText.text.toString()
-        val selectedAction = actionSpinner.selectedItem.toString()
+
 
         if (phoneNumber.isNotBlank()) {
             val sharedPrefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
             with(sharedPrefs.edit()) {
                 putString(KEY_PHONE_NUMBER, phoneNumber)
                 putString(KEY_PASSPHRASE, passPhrase)
-                putString(KEY_ACTION, selectedAction)
                 apply()
             }
             Toast.makeText(this, "Settings saved!", Toast.LENGTH_SHORT).show()
@@ -141,14 +128,6 @@ class MainActivity : AppCompatActivity() {
 
         val savedPassPhrase = sharedPrefs.getString(KEY_PASSPHRASE, "")
         passphraseEditText.setText(savedPassPhrase)
-
-        val actionToDo = sharedPrefs.getString(KEY_ACTION, "Loud")
-
-        val actions = arrayOf("Loud", "Play Sound")
-        val defaultModeIndex = actions.indexOf(actionToDo)
-        if (defaultModeIndex != -1) {
-            actionSpinner.setSelection(defaultModeIndex)
-        }
     }
     /**
      * Check if Do Not Disturb access is granted and prompt user if not

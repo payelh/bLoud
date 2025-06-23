@@ -16,7 +16,7 @@ import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
-    private val TAG = "MusicPlaybackService"
+    private val TAG = javaClass.simpleName //use class name as tag
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var audioManager: AudioManager
     private val NOTIFICATION_CHANNEL_ID = "MusicPlaybackChannel"
@@ -32,9 +32,7 @@ class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
     }
 
     override fun onCreate() {
-        super.onCreate(
-
-        )
+        super.onCreate()
         Log.d(TAG, "Service created")
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         createNotificationChannel() // Create notification channel for Android O+
@@ -80,7 +78,7 @@ class MusicPlaybackService : Service(), MediaPlayer.OnCompletionListener {
         if (mediaPlayer?.isPlaying == false) {
             mediaPlayer?.start() // Start or resume playback
             Log.i(TAG, "Music started/resumed")
-            Toast.makeText(this, "Music started.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Music started by bLoud app", Toast.LENGTH_SHORT).show()
 
             // send broadcast that music has started
             LocalBroadcastManager.getInstance(this).sendBroadcast(Intent(ACTION_MUSIC_STARTED))

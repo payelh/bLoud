@@ -11,6 +11,7 @@
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <!-- REQUIRED FOR FOREGROUND SERVICE (for background music playback) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -47,12 +48,23 @@
             </intent-filter>
         </receiver>
 
-        <!-- UPDATED: Declare your MusicPlaybackService with foregroundServiceType -->
+        <!-- Declare your MusicPlaybackService with foregroundServiceType -->
         <service
             android:name=".MusicPlaybackService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" /> <!-- ADD THIS LINE -->
+            android:foregroundServiceType="mediaPlayback" />
+
+        <!-- BootReceiver -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true"> <!-- Must be true to receive system broadcasts -->
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>
